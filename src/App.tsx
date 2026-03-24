@@ -121,7 +121,7 @@ export default function App() {
     {
       emoji: "🥟",
       title: "Tera Grand Prize:",
-      subtitle: "Iss weekend mere saath Momos date pe chalegi. (Chalna hi padega, option nahi hai)",
+      subtitle: "Iss weekend mere saath Momos khane chalegi. (Chalna hi padega, option nahi hai)",
       buttonText: "", // Final Yes/No Phase
       action: () => { },
     },
