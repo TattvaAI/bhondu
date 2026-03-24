@@ -300,9 +300,16 @@ export default function App() {
             >
               Ready rehna. I'll pick you up! Ab Momos time! 🥟✨
             </p>
+            <p className="signature-text">
+              — Shivansh
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <footer className="footer-credit">
+        Made with ❤️ by <span className="footer-name">Shivansh</span>
+      </footer>
     </div>
   );
 }
