@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import './index.css';
@@ -10,6 +10,7 @@ export default function App() {
 
   // Safe bounded evasive movement state
   const [noPos, setNoPos] = useState({ x: 0, y: 0 });
+  const baseLayoutRef = useRef<HTMLDivElement>(null);
 
   // Playful floating background shapes
   const shapes = Array.from({ length: 15 }).map((_, i) => ({
@@ -21,33 +22,46 @@ export default function App() {
   }));
 
   const handleEvade = (e: any) => {
-    // If it's a touch event, prevent it from triggering a click
-    if (e.cancelable) e.preventDefault();
+    // If it's a touch event, prevent it from triggering a click later
+    if (e.cancelable) {
+      e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation();
+    }
+
+    if (!baseLayoutRef.current) return;
 
     const btn = e.currentTarget;
     const rect = btn.getBoundingClientRect();
+    const baseRect = baseLayoutRef.current.getBoundingClientRect();
 
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
 
-    let targetAbsX = Math.random() * (viewportW - rect.width - 40) + 20;
-    let targetAbsY = Math.random() * (viewportH - rect.height - 40) + 20;
+    // Use tighter mobile bounds, avoiding screen edges
+    const padding = 20;
+    const maxW = viewportW - rect.width - padding;
+    const maxH = viewportH - rect.height - padding;
+    
+    // Safety check in case screen is too small
+    const safeMaxW = Math.max(maxW, padding + 1);
+    const safeMaxH = Math.max(maxH, padding + 1);
+
+    let targetAbsX = Math.random() * (safeMaxW - padding) + padding;
+    let targetAbsY = Math.random() * (safeMaxH - padding) + padding;
 
     let attempts = 0;
     while (
-      Math.hypot(targetAbsX - rect.left, targetAbsY - rect.top) < 150 &&
+      Math.hypot(targetAbsX - rect.left, targetAbsY - rect.top) < 100 &&
       attempts < 10
     ) {
-      targetAbsX = Math.random() * (viewportW - rect.width - 40) + 20;
-      targetAbsY = Math.random() * (viewportH - rect.height - 40) + 20;
+      targetAbsX = Math.random() * (safeMaxW - padding) + padding;
+      targetAbsY = Math.random() * (safeMaxH - padding) + padding;
       attempts++;
     }
 
-    const staticOriginX = rect.left - noPos.x;
-    const staticOriginY = rect.top - noPos.y;
-
-    const newTranslateX = targetAbsX - staticOriginX;
-    const newTranslateY = targetAbsY - staticOriginY;
+    // Calculate translation relative to the un-animated base layout position
+    const newTranslateX = targetAbsX - baseRect.left;
+    const newTranslateY = targetAbsY - baseRect.top;
 
     setNoPos({ x: newTranslateX, y: newTranslateY });
   };
@@ -245,19 +259,21 @@ export default function App() {
                 </button>
 
                 {/* Evasion Button with Bounded Math */}
-                <motion.div
-                  className="no-button-wrapper-physics"
-                  animate={{ x: noPos.x, y: noPos.y }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                >
-                  <button
-                    className="btn-secondary"
-                    onMouseEnter={handleEvade}
-                    onTouchStart={handleEvade}
+                <div ref={baseLayoutRef} style={{ display: 'inline-block' }}>
+                  <motion.div
+                    className="no-button-wrapper-physics"
+                    animate={{ x: noPos.x, y: noPos.y }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
-                    Nahi jana 🤢
-                  </button>
-                </motion.div>
+                    <button
+                      className="btn-secondary"
+                      onMouseEnter={handleEvade}
+                      onTouchStart={handleEvade}
+                    >
+                      Nahi jana 🤢
+                    </button>
+                  </motion.div>
+                </div>
               </div>
             )}
           </motion.div>
