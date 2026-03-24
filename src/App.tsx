@@ -7,7 +7,7 @@ export default function App() {
   const [step, setStep] = useState(0);
   const [sliderValue, setSliderValue] = useState(0);
   const [isBhonduChecked, setIsBhonduChecked] = useState(false);
-  
+
   // Safe bounded evasive movement state
   const [noPos, setNoPos] = useState({ x: 0, y: 0 });
 
@@ -92,9 +92,9 @@ export default function App() {
     },
     {
       emoji: "🤔",
-      title: "Mai itne time se ek baat observe kar raha tha...",
-      subtitle: "Aur aaj maine socha finally ek decision le hi loon.",
-      buttonText: "Kaisa decision?",
+      title: "Mera dimaag khaate khaate tujhe itna time ho gaya hai...",
+      subtitle: "Toh maine socha teri iss mehnat ko finally reward kar hi doon.",
+      buttonText: "Kaisa reward? 🤔",
       action: () => setStep(2),
     },
     {
@@ -102,7 +102,7 @@ export default function App() {
       title: "Par pehle, ek security check.",
       subtitle: "Prove kar ki tu kitni badi Bhondu hai.",
       buttonText: "", // Slider Mini-game
-      action: () => {},
+      action: () => { },
     },
     {
       emoji: "😂",
@@ -123,7 +123,7 @@ export default function App() {
       title: "Tera Grand Prize:",
       subtitle: "Iss weekend mere saath Momos date pe chalegi. (Chalna hi padega, option nahi hai)",
       buttonText: "", // Final Yes/No Phase
-      action: () => {},
+      action: () => { },
     },
   ];
 
@@ -196,9 +196,9 @@ export default function App() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="checkbox-wrapper"
-                      style={{ 
-                        background: 'rgba(255, 10, 84, 0.1)', 
-                        padding: '1rem', 
+                      style={{
+                        background: 'rgba(255, 10, 84, 0.1)',
+                        padding: '1rem',
                         borderRadius: '16px',
                         display: 'flex',
                         alignItems: 'center',
@@ -208,11 +208,11 @@ export default function App() {
                       }}
                       onClick={() => setIsBhonduChecked(!isBhonduChecked)}
                     >
-                      <input 
-                        type="checkbox" 
-                        checked={isBhonduChecked} 
+                      <input
+                        type="checkbox"
+                        checked={isBhonduChecked}
                         readOnly
-                        style={{ width: '24px', height: '24px', accentColor: '#ff0a54' }} 
+                        style={{ width: '24px', height: '24px', accentColor: '#ff0a54' }}
                       />
                       <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#ff0a54' }}>
                         Main kabool karti hu ki main Bhondu hu. 🤚
