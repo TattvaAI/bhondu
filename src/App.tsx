@@ -22,7 +22,7 @@ class SoundSynth {
 
   private init() {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
@@ -198,6 +198,35 @@ const SparkleSVG = () => (
 );
 
 // ==========================================
+// 2.5. Mobile Haptic Feedback Helper
+// ==========================================
+const triggerHaptic = (pattern: number | number[]) => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    try {
+      navigator.vibrate(pattern);
+    } catch (e) {
+      console.warn("Haptic feedback error:", e);
+    }
+  }
+};
+
+// Pre-calculate randomized floating path details once to ensure render purity
+const FLOATING_ITEMS = Array.from({ length: 16 }).map((_, i) => {
+  const types = ['momo', 'heart', 'sparkle'];
+  const randomX = Math.random() * 120 - 60;
+  return {
+    id: i,
+    type: types[Math.floor(Math.random() * types.length)],
+    size: Math.random() * 26 + 18,
+    left: (Math.random() * 90 + 5) + "%",
+    duration: Math.random() * 10 + 8,
+    delay: Math.random() * 4,
+    color: ['#ff0a54', '#ff7096', '#8338ec', '#00f5d4'][Math.floor(Math.random() * 4)],
+    xPath: [0, randomX, 0],
+  };
+});
+
+// ==========================================
 // 3. Main App Component Redesign
 // ==========================================
 export default function App() {
@@ -213,7 +242,10 @@ export default function App() {
   const [step, setStep] = useState(0);
   const [sliderValue, setSliderValue] = useState(0);
   const [isBhonduChecked, setIsBhonduChecked] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('bhondu-theme') as 'light' | 'dark' : null;
+    return savedTheme || 'light';
+  });
   const [isMuted, setIsMuted] = useState(false);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
 
@@ -236,27 +268,23 @@ export default function App() {
 
   useEffect(() => {
     soundSynth.current = new SoundSynth();
-    // Default theme check
-    const savedTheme = localStorage.getItem('bhondu-theme') as 'light' | 'dark';
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-    }
-  }, []);
+    // Synchronize HTML attribute on mount
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(nextTheme);
     document.documentElement.setAttribute('data-theme', nextTheme);
     localStorage.setItem('bhondu-theme', nextTheme);
+    triggerHaptic(15);
     if (soundSynth.current) soundSynth.current.playTap();
   };
 
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
+    triggerHaptic(15);
     if (soundSynth.current) {
       soundSynth.current.setMuted(nextMuted);
       if (!nextMuted) soundSynth.current.playTap();
@@ -264,10 +292,12 @@ export default function App() {
   };
 
   // Safe vector-based evasive physics engine
-  const handleEvade = (e: any) => {
+  const handleEvade = (e: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => {
     if (e.cancelable) {
       e.preventDefault();
     }
+
+    triggerHaptic(20);
 
     if (soundSynth.current) {
       soundSynth.current.playEvade();
@@ -284,12 +314,15 @@ export default function App() {
     const originalTop = rect.top - noPos.y;
 
     // Get exact cursor coordinate points
-    let clientX = e.clientX;
-    let clientY = e.clientY;
+    let clientX = 0;
+    let clientY = 0;
 
-    if (e.touches && e.touches.length > 0) {
+    if ('touches' in e && e.touches.length > 0) {
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
     }
 
     const btnCenterX = rect.left + rect.width / 2;
@@ -309,22 +342,39 @@ export default function App() {
     const normY = dy / (dist || 1);
 
     // Apply rapid cinematic pop velocity
-    const jumpDistance = 160 + Math.random() * 80; 
+    const jumpDistance = 140 + Math.random() * 60; 
     let targetAbsX = btnCenterX + normX * jumpDistance - rect.width / 2;
     let targetAbsY = btnCenterY + normY * jumpDistance - rect.height / 2;
 
-    // Screen padding margins
-    const margin = 28;
-    const minW = margin;
-    const maxW = viewportW - rect.width - margin;
-    const minH = margin;
-    const maxH = viewportH - rect.height - margin;
+    // Query glassmorphic container bounds to restrict movement inside it
+    const container = document.querySelector('.content-wrapper');
+    const containerRect = container ? container.getBoundingClientRect() : null;
 
-    // Constrained reflecting bounds check
-    if (targetAbsX < minW) targetAbsX = minW + Math.random() * 60;
-    if (targetAbsX > maxW) targetAbsX = maxW - Math.random() * 60;
-    if (targetAbsY < minH) targetAbsY = minH + Math.random() * 60;
-    if (targetAbsY > maxH) targetAbsY = maxH - Math.random() * 60;
+    const safeMargin = 16;
+    const minW = containerRect ? containerRect.left + safeMargin : safeMargin;
+    const maxW = containerRect ? containerRect.right - rect.width - safeMargin : viewportW - rect.width - safeMargin;
+    const minH = containerRect ? containerRect.top + safeMargin : safeMargin;
+    const maxH = containerRect ? containerRect.bottom - rect.height - safeMargin : viewportH - rect.height - safeMargin;
+
+    // Constrained card bounds check with fallback handling
+    let finalMinW = minW;
+    let finalMaxW = maxW;
+    if (finalMaxW < finalMinW) {
+      finalMinW = safeMargin;
+      finalMaxW = viewportW - rect.width - safeMargin;
+    }
+    
+    let finalMinH = minH;
+    let finalMaxH = maxH;
+    if (finalMaxH < finalMinH) {
+      finalMinH = safeMargin;
+      finalMaxH = viewportH - rect.height - safeMargin;
+    }
+
+    if (targetAbsX < finalMinW) targetAbsX = finalMinW + Math.random() * Math.min(30, (finalMaxW - finalMinW) / 2 || 1);
+    if (targetAbsX > finalMaxW) targetAbsX = finalMaxW - Math.random() * Math.min(30, (finalMaxW - finalMinW) / 2 || 1);
+    if (targetAbsY < finalMinH) targetAbsY = finalMinH + Math.random() * Math.min(30, (finalMaxH - finalMinH) / 2 || 1);
+    if (targetAbsY > finalMaxH) targetAbsY = finalMaxH - Math.random() * Math.min(30, (finalMaxH - finalMinH) / 2 || 1);
 
     // Calculate translation metrics relative to unshifted origin coordinate points
     const relX = targetAbsX - originalLeft;
@@ -336,6 +386,7 @@ export default function App() {
   };
 
   const nextStep = () => {
+    triggerHaptic(15);
     if (soundSynth.current) {
       soundSynth.current.playTap();
     }
@@ -347,20 +398,26 @@ export default function App() {
     setSliderValue(val);
     if (val === 100) {
       if (!hasTriggeredLevelUp.current) {
+        triggerHaptic([50, 50, 100]);
         if (soundSynth.current) soundSynth.current.playLevelUp();
         hasTriggeredLevelUp.current = true;
       }
     } else {
       hasTriggeredLevelUp.current = false;
+      if (val % 8 === 0) {
+        triggerHaptic(8); // Subtle clicks during drag
+      }
     }
   };
 
   const handleCheckboxClick = () => {
+    triggerHaptic(20);
     if (soundSynth.current) soundSynth.current.playTap();
     setIsBhonduChecked(!isBhonduChecked);
   };
 
   const celebrate = () => {
+    triggerHaptic([100, 30, 80, 30, 150]);
     if (soundSynth.current) {
       soundSynth.current.playSuccess();
     }
@@ -397,6 +454,7 @@ export default function App() {
   // Generate customized link share engine
   const handleGenerateLink = (e: React.FormEvent) => {
     e.preventDefault();
+    triggerHaptic([30, 50, 30]);
     const baseUrl = window.location.origin + window.location.pathname;
     const params = new URLSearchParams();
 
@@ -422,22 +480,6 @@ export default function App() {
     if (sliderValue < 100) return `Dangerously Close to ${targetName}! ⚠️`;
     return `👑 Absolute 100% ${targetName}!`;
   };
-
-  // Setup background floating array objects
-  const floatingItems = useRef(
-    Array.from({ length: 16 }).map((_, i) => {
-      const types = ['momo', 'heart', 'sparkle'];
-      return {
-        id: i,
-        type: types[Math.floor(Math.random() * types.length)],
-        size: Math.random() * 26 + 18,
-        left: (Math.random() * 90 + 5) + "%",
-        duration: Math.random() * 10 + 8,
-        delay: Math.random() * 4,
-        color: ['#ff0a54', '#ff7096', '#8338ec', '#00f5d4'][Math.floor(Math.random() * 4)],
-      };
-    })
-  );
 
   const isCustom = targetName !== 'Bhondu' || senderName !== 'Shivansh' || rewardName !== 'Momos';
 
@@ -490,7 +532,7 @@ export default function App() {
     <div className="layout">
       {/* Floating Animated Shapes */}
       <div className="floating-shapes">
-        {floatingItems.current.map((item) => (
+        {FLOATING_ITEMS.map((item) => (
           <motion.div
             key={item.id}
             style={{
@@ -503,7 +545,7 @@ export default function App() {
             }}
             animate={{
               y: [-120, -window.innerHeight - 150],
-              x: [0, Math.random() * 120 - 60, 0],
+              x: item.xPath,
               rotate: [0, 360],
             }}
             transition={{
